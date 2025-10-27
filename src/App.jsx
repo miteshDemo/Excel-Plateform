@@ -4,6 +4,7 @@ import Home from "../Frontend/pages/Home";
 import Register from "../Frontend/pages/Register";
 import Login from "../Frontend/pages/Login";
 import Dashboard from "../Frontend/pages/Dashboard";
+import Analyze from "../Frontend/pages/Analyze";
 import ProtectedRoute from "../Frontend/protectRoutes/protectedRoutes"
 
 function App() {
@@ -17,6 +18,11 @@ function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/analyze/:id" element={
+            <ProtectedRoute>
+              <Analyze />
             </ProtectedRoute>
           } />
         </Routes>

@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import AuthContext from "../protectRoutes/AuthContext";
@@ -12,7 +13,6 @@ import {
   Card,
   CardContent,
   Avatar,
-  Divider,
   CircularProgress,
   Alert,
   AppBar,
@@ -20,37 +20,79 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  LinearProgress,
+  ListItem,
+  ListItemIcon,
+  Snackbar,
+  Tooltip,
+  Slide,
 } from "@mui/material";
 import {
   TableChart,
   AccountCircle,
   ExitToApp,
+  CloudUpload,
+  InsertDriveFile,
+  Close,
+  Delete,
+  Download,
   Analytics,
-  Share,
-  CloudDownload,
-  TrendingUp,
-  Group,
-  Security,
 } from "@mui/icons-material";
-
 
 export default function Dashboard() {
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
-  const navigate = useNavigate();
 
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
+  const [recentFiles, setRecentFiles] = useState([]);
+
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [totalAnalysisFiles, setTotalAnalysisFiles] = useState(0);
+  const [totalDownloads, setTotalDownloads] = useState(0);
+
+  const [deletedFile, setDeletedFile] = useState(null);
+  const [undoTimer, setUndoTimer] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const API_BASE = "http://localhost:5000/api";
+
+  // ✅ Fetch dashboard data
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/auth/profile", {
-          headers: { Authorization: `Bearer ${user.token}` },
-        });
-        setProfile(data);
-      } catch (error) {
-        setError("Session expired. Please login again.");
+        const token = user?.token;
+        if (!token) throw new Error("Token missing");
+
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [profileRes, recentRes, countRes, analysisRes, downloadRes] =
+          await Promise.all([
+            axios.get(`${API_BASE}/auth/profile`, { headers }),
+            axios.get(`${API_BASE}/uploads/recent`, { headers }),
+            axios.get(`${API_BASE}/uploads/count`, { headers }),
+            axios.get(`${API_BASE}/uploads/analysis-count`, { headers }),
+            axios.get(`${API_BASE}/uploads/download-count`, { headers }),
+          ]);
+
+        setProfile(profileRes.data);
+        setRecentFiles(recentRes.data);
+        setTotalFiles(countRes.data.total);
+        setTotalAnalysisFiles(analysisRes.data.total);
+        setTotalDownloads(downloadRes.data.total);
+      } catch (err) {
+        console.error("Dashboard error:", err.response || err.message);
+        setError("Session expired or server unavailable. Please log in again.");
         setTimeout(() => {
           logout();
           navigate("/login");
@@ -59,55 +101,135 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-    fetchProfile();
+
+    fetchDashboardData();
   }, [user, logout, navigate]);
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
+  // Menu
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
   const handleLogout = () => {
     handleMenuClose();
     logout();
     navigate("/login");
   };
 
-  const quickActions = [
-    {
-      icon: <TableChart sx={{ fontSize: 40 }} />,
-      title: "New Spreadsheet",
-      description: "Create a new spreadsheet",
-      color: "#217346",
-    },
-    {
-      icon: <Analytics sx={{ fontSize: 40 }} />,
-      title: "Data Analysis",
-      description: "Analyze your data",
-      color: "#1a6ed8",
-    },
-    {
-      icon: <Share sx={{ fontSize: 40 }} />,
-      title: "Share",
-      description: "Share with team",
-      color: "#ff6b35",
-    },
-    {
-      icon: <CloudDownload sx={{ fontSize: 40 }} />,
-      title: "Export",
-      description: "Export your data",
-      color: "#6a1b9a",
-    },
-  ];
+  // Upload dialog
+  const handleUploadOpen = () => {
+    setUploadDialogOpen(true);
+    setUploadError("");
+    setUploadProgress(0);
+  };
+  const handleUploadClose = () => {
+    setUploadDialogOpen(false);
+    setUploading(false);
+    setUploadProgress(0);
+    setUploadError("");
+  };
 
+  // ✅ Upload Excel file
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      setUploadError("Please upload only Excel files (.xlsx, .xls)");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploading(true);
+    setUploadError("");
+
+    try {
+      const res = await axios.post(`${API_BASE}/uploads/upload`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${user.token}`,
+        },
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percent);
+        },
+      });
+
+      const uploadedFile = res.data.file;
+      setRecentFiles((prev) => [uploadedFile, ...prev]);
+      setTotalFiles((prev) => prev + 1);
+    } catch (error) {
+      console.error(error);
+      setUploadError("Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ✅ Delete file with Undo
+  const handleDeleteFile = async (fileId) => {
+    const fileToDelete = recentFiles.find((f) => f._id === fileId);
+    setDeletedFile(fileToDelete);
+    setRecentFiles((prev) => prev.filter((f) => f._id !== fileId));
+    setSnackbarOpen(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        await axios.delete(`${API_BASE}/uploads/${fileId}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+      } catch (error) {
+        console.error(error);
+        setUploadError("Failed to delete file");
+      }
+      setDeletedFile(null);
+    }, 5000);
+
+    setUndoTimer(timer);
+  };
+
+  const handleUndoDelete = () => {
+    if (undoTimer) clearTimeout(undoTimer);
+    if (deletedFile) {
+      setRecentFiles((prev) => [deletedFile, ...prev]);
+      setDeletedFile(null);
+    }
+    setSnackbarOpen(false);
+  };
+
+  // ✅ Download file
+  const handleDownloadFile = async (fileId, fileName) => {
+    try {
+      const res = await axios.get(`${API_BASE}/uploads/download/${fileId}`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        responseType: "blob",
+      });
+
+      setTotalDownloads((prev) => prev + 1);
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error(error);
+      setUploadError("Failed to download file");
+    }
+  };
+
+  // ✅ Analyze file
+  const handleAnalyzeFile = (fileId) => navigate(`/analyze/${fileId}`);
+
+  // Stats
   const stats = [
-    { label: "Spreadsheets", value: "12", icon: <TableChart /> },
-    { label: "Shared Files", value: "8", icon: <Group /> },
-    { label: "Storage Used", value: "2.4 GB", icon: <CloudDownload /> },
-    { label: "Team Members", value: "5", icon: <Security /> },
+    { label: "Total Files", value: totalFiles, icon: <InsertDriveFile /> },
+    { label: "Analyzed Files", value: totalAnalysisFiles, icon: <Analytics /> },
+    { label: "Total Downloads", value: totalDownloads, icon: <Download /> },
   ];
 
   if (loading) {
@@ -118,57 +240,30 @@ export default function Dashboard() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
         }}
       >
-        <Box textAlign="center">
-          <CircularProgress size={60} sx={{ color: "primary.main", mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
-            Loading your dashboard...
-          </Typography>
-        </Box>
+        <CircularProgress size={60} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1, minHeight: "100vh", background: "#f8f9fa" }}>
-      {/* Navigation Bar */}
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f8f9fa" }}>
+      {/* Navbar */}
       <AppBar position="static" elevation={2}>
         <Toolbar>
           <TableChart sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Excel Platform
           </Typography>
-          
-          <IconButton
-            size="large"
-            aria-label="account of current user"
-            aria-controls="menu-appbar"
-            aria-haspopup="true"
-            onClick={handleMenuOpen}
-            color="inherit"
-          >
+          <IconButton onClick={handleMenuOpen} color="inherit">
             <AccountCircle />
           </IconButton>
           <Menu
-            id="menu-appbar"
             anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
           >
-            <MenuItem onClick={handleMenuClose}>
-              <AccountCircle sx={{ mr: 1 }} /> Profile
-            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ExitToApp sx={{ mr: 1 }} /> Logout
             </MenuItem>
@@ -176,186 +271,179 @@ export default function Dashboard() {
         </Toolbar>
       </AppBar>
 
+      {/* Main Container */}
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+        {error && <Alert severity="error">{error}</Alert>}
 
-        {/* Welcome Section */}
+        {/* Welcome Banner */}
         <Paper
           elevation={3}
           sx={{
             p: 4,
             mb: 4,
-            background: "linear-gradient(135deg, #217346 0%, #1a6ed8 100%)",
+            background: "linear-gradient(135deg, #217346, #1a6ed8)",
             color: "white",
             borderRadius: 3,
           }}
         >
           <Grid container alignItems="center" spacing={3}>
             <Grid item>
-              <Avatar
-                sx={{
-                  width: 80,
-                  height: 80,
-                  bgcolor: "rgba(255,255,255,0.2)",
-                  fontSize: "2rem",
-                }}
-              >
+              <Avatar sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.2)" }}>
                 {profile?.name?.charAt(0).toUpperCase()}
               </Avatar>
             </Grid>
             <Grid item xs>
-              <Typography variant="h4" gutterBottom fontWeight="600">
+              <Typography variant="h4">
                 Welcome back, {profile?.name}!
               </Typography>
               <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                Ready to create some amazing spreadsheets?
+                Manage and analyze your Excel files efficiently
               </Typography>
             </Grid>
             <Grid item>
-              <TrendingUp sx={{ fontSize: 60, opacity: 0.8 }} />
+              <Button
+                variant="contained"
+                startIcon={<CloudUpload />}
+                onClick={handleUploadOpen}
+                sx={{
+                  background: "white",
+                  color: "primary.main",
+                  fontWeight: "600",
+                }}
+              >
+                Upload Excel File
+              </Button>
             </Grid>
           </Grid>
         </Paper>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          {stats.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card
-                elevation={2}
-                sx={{
-                  height: "100%",
-                  borderRadius: 2,
-                  transition: "transform 0.2s",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                  },
-                }}
-              >
-                <CardContent sx={{ textAlign: "center", p: 3 }}>
-                  <Box
-                    sx={{
-                      color: "primary.main",
-                      mb: 2,
-                    }}
-                  >
-                    {stat.icon}
-                  </Box>
-                  <Typography variant="h4" fontWeight="600" gutterBottom>
-                    {stat.value}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stat.label}
-                  </Typography>
+          {stats.map((stat, i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <Card sx={{ textAlign: "center", p: 2 }}>
+                <CardContent>
+                  <Box sx={{ color: "primary.main", mb: 2 }}>{stat.icon}</Box>
+                  <Typography variant="h4">{stat.value}</Typography>
+                  <Typography variant="body2">{stat.label}</Typography>
                 </CardContent>
               </Card>
             </Grid>
           ))}
         </Grid>
 
-        <Grid container spacing={4}>
-          {/* Quick Actions */}
-          <Grid item xs={12} md={8}>
-            <Typography variant="h5" gutterBottom fontWeight="600" sx={{ mb: 3 }}>
-              Quick Actions
-            </Typography>
-            <Grid container spacing={3}>
-              {quickActions.map((action, index) => (
-                <Grid item xs={12} sm={6} key={index}>
-                  <Card
-                    elevation={2}
-                    sx={{
-                      cursor: "pointer",
-                      borderRadius: 2,
-                      transition: "all 0.2s",
-                      "&:hover": {
-                        transform: "translateY(-4px)",
-                        boxShadow: 4,
-                      },
-                    }}
-                  >
-                    <CardContent sx={{ textAlign: "center", p: 3 }}>
-                      <Box sx={{ color: action.color, mb: 2 }}>
-                        {action.icon}
-                      </Box>
-                      <Typography variant="h6" gutterBottom fontWeight="600">
-                        {action.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {action.description}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
+        {/* Recent Files */}
+        <Typography variant="h5" fontWeight="600" sx={{ mb: 2 }}>
+          Recent Files
+        </Typography>
 
-          {/* Profile Info */}
-          <Grid item xs={12} md={4}>
-            <Typography variant="h5" gutterBottom fontWeight="600" sx={{ mb: 3 }}>
-              Profile Information
-            </Typography>
-            <Card elevation={2} sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Full Name
-                  </Typography>
-                  <Typography variant="h6" fontWeight="500">
-                    {profile?.name}
-                  </Typography>
-                </Box>
-                
-                <Divider sx={{ my: 2 }} />
-                
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Email Address
-                  </Typography>
-                  <Typography variant="h6" fontWeight="500">
-                    {profile?.email}
-                  </Typography>
-                </Box>
-                
-                <Divider sx={{ my: 2 }} />
-                
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Member Since
-                  </Typography>
-                  <Typography variant="h6" fontWeight="500">
-                    {new Date().toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </Typography>
-                </Box>
-
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<ExitToApp />}
-                  onClick={handleLogout}
-                  sx={{
-                    mt: 3,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: "600",
-                  }}
+        <Card>
+          <CardContent sx={{ p: 0 }}>
+            {recentFiles.length ? (
+              recentFiles.map((file) => (
+                <ListItem
+                  key={file._id}
+                  divider
+                  sx={{ px: 3, py: 2, "&:hover": { bgcolor: "action.hover" } }}
                 >
-                  Sign Out
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                  <ListItemIcon>
+                    <TableChart color="primary" />
+                  </ListItemIcon>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6">{file.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(file.createdAt).toLocaleDateString()} • {file.size}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title="Analyze">
+                      <IconButton onClick={() => handleAnalyzeFile(file._id)}>
+                        <Analytics color="primary" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Download">
+                      <IconButton
+                        onClick={() => handleDownloadFile(file._id, file.name)}
+                      >
+                        <Download color="success" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton onClick={() => handleDeleteFile(file._id)}>
+                        <Delete color="error" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </ListItem>
+              ))
+            ) : (
+              <Box textAlign="center" py={6}>
+                <TableChart sx={{ fontSize: 48, mb: 2 }} />
+                <Typography>No files uploaded yet</Typography>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       </Container>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onClose={handleUploadClose} fullWidth maxWidth="sm">
+        <DialogTitle>
+          Upload Excel File
+          <IconButton onClick={handleUploadClose} sx={{ float: "right" }}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {uploadError && <Alert severity="error">{uploadError}</Alert>}
+          {uploading ? (
+            <Box textAlign="center" py={3}>
+              <CircularProgress value={uploadProgress} variant="determinate" />
+              <Typography>Uploading... {uploadProgress}%</Typography>
+              <LinearProgress
+                variant="determinate"
+                value={uploadProgress}
+                sx={{ mt: 2 }}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                border: "2px dashed #1976d2",
+                borderRadius: 2,
+                p: 4,
+                textAlign: "center",
+                bgcolor: "action.hover",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("file-upload").click()}
+            >
+              <CloudUpload sx={{ fontSize: 48, mb: 2, color: "primary.main" }} />
+              <Typography>Click or drop Excel file</Typography>
+              <input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls"
+                hidden
+                onChange={handleFileUpload}
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Snackbar Undo */}
+      <Snackbar
+        open={snackbarOpen} 
+        message="File deleted"
+        action={
+          <Button color="secondary" onClick={handleUndoDelete}>
+            UNDO
+          </Button>
+        }
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        TransitionComponent={(props) => <Slide {...props} direction="up" />}
+      />
     </Box>
   );
 }
