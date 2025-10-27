@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../Frontend/protectRoutes/AuthContext";
+import Home from "../Frontend/pages/Home";
 import Register from "../Frontend/pages/Register";
 import Login from "../Frontend/pages/Login";
 import Dashboard from "../Frontend/pages/Dashboard";
@@ -10,6 +11,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={
