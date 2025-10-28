@@ -1,8 +1,8 @@
 // src/pages/Dashboard.jsx
 import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import AuthContext from "../protectRoutes/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Paper,
@@ -46,51 +46,44 @@ export default function Dashboard() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // State
   const [profile, setProfile] = useState(null);
-  const [recentFiles, setRecentFiles] = useState([]);
-  const [totalFiles, setTotalFiles] = useState(0);
-  const [totalAnalysisFiles, setTotalAnalysisFiles] = useState(0);
-  const [totalDownloads, setTotalDownloads] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // Menu & Dialog
   const [anchorEl, setAnchorEl] = useState(null);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Upload
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
+  const [recentFiles, setRecentFiles] = useState([]);
 
-  // Delete / Undo
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [totalAnalysisFiles, setTotalAnalysisFiles] = useState(0);
+  const [totalDownloads, setTotalDownloads] = useState(0);
+
   const [deletedFile, setDeletedFile] = useState(null);
   const [undoTimer, setUndoTimer] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   const API_BASE = "http://localhost:5000/api";
 
-  // ✅ Fetch Dashboard Data
+  // ✅ Fetch dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        if (!user?.token) throw new Error("No auth token found");
-        const headers = { Authorization: `Bearer ${user.token}` };
+        const token = user?.token;
+        if (!token) throw new Error("Token missing");
 
-        const [
-          profileRes,
-          recentRes,
-          countRes,
-          analysisRes,
-          downloadRes,
-        ] = await Promise.all([
-          axios.get(`${API_BASE}/auth/profile`, { headers }),
-          axios.get(`${API_BASE}/uploads/recent`, { headers }),
-          axios.get(`${API_BASE}/uploads/count`, { headers }),
-          axios.get(`${API_BASE}/uploads/analysis-count`, { headers }),
-          axios.get(`${API_BASE}/uploads/download-count`, { headers }),
-        ]);
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [profileRes, recentRes, countRes, analysisRes, downloadRes] =
+          await Promise.all([
+            axios.get(`${API_BASE}/auth/profile`, { headers }),
+            axios.get(`${API_BASE}/uploads/recent`, { headers }),
+            axios.get(`${API_BASE}/uploads/count`, { headers }),
+            axios.get(`${API_BASE}/uploads/analysis-count`, { headers }),
+            axios.get(`${API_BASE}/uploads/download-count`, { headers }),
+          ]);
 
         setProfile(profileRes.data);
         setRecentFiles(recentRes.data);
@@ -98,7 +91,7 @@ export default function Dashboard() {
         setTotalAnalysisFiles(analysisRes.data.total);
         setTotalDownloads(downloadRes.data.total);
       } catch (err) {
-        console.error("Dashboard Error:", err.response || err.message);
+        console.error("Dashboard error:", err.response || err.message);
         setError("Session expired or server unavailable. Please log in again.");
         setTimeout(() => {
           logout();
@@ -112,7 +105,7 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [user, logout, navigate]);
 
-  // ✅ Menu
+  // Menu
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
   const handleLogout = () => {
@@ -121,7 +114,7 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  // ✅ Upload Dialog
+  // Upload dialog
   const handleUploadOpen = () => {
     setUploadDialogOpen(true);
     setUploadError("");
@@ -134,11 +127,12 @@ export default function Dashboard() {
     setUploadError("");
   };
 
-  // ✅ Handle File Upload
+  // ✅ Upload Excel file
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
       setUploadError("Please upload only Excel files (.xlsx, .xls)");
       return;
     }
@@ -155,23 +149,27 @@ export default function Dashboard() {
           "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${user.token}`,
         },
-        onUploadProgress: (e) =>
-          setUploadProgress(Math.round((e.loaded * 100) / e.total)),
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percent);
+        },
       });
 
       const uploadedFile = res.data.file;
       setRecentFiles((prev) => [uploadedFile, ...prev]);
       setTotalFiles((prev) => prev + 1);
-    } catch (err) {
-      console.error(err);
-      setUploadError("File upload failed. Please try again.");
+    } catch (error) {
+      console.error(error);
+      setUploadError("Upload failed. Try again.");
     } finally {
       setUploading(false);
     }
   };
 
-  // ✅ Delete File with Undo
-  const handleDeleteFile = (fileId) => {
+  // ✅ Delete file with Undo
+  const handleDeleteFile = async (fileId) => {
     const fileToDelete = recentFiles.find((f) => f._id === fileId);
     setDeletedFile(fileToDelete);
     setRecentFiles((prev) => prev.filter((f) => f._id !== fileId));
@@ -182,8 +180,8 @@ export default function Dashboard() {
         await axios.delete(`${API_BASE}/uploads/${fileId}`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
-      } catch (err) {
-        console.error("Delete failed:", err);
+      } catch (error) {
+        console.error(error);
         setUploadError("Failed to delete file");
       }
       setDeletedFile(null);
@@ -194,12 +192,14 @@ export default function Dashboard() {
 
   const handleUndoDelete = () => {
     if (undoTimer) clearTimeout(undoTimer);
-    if (deletedFile) setRecentFiles((prev) => [deletedFile, ...prev]);
-    setDeletedFile(null);
+    if (deletedFile) {
+      setRecentFiles((prev) => [deletedFile, ...prev]);
+      setDeletedFile(null);
+    }
     setSnackbarOpen(false);
   };
 
-  // ✅ Download File
+  // ✅ Download file
   const handleDownloadFile = async (fileId, fileName) => {
     try {
       const res = await axios.get(`${API_BASE}/uploads/download/${fileId}`, {
@@ -209,30 +209,29 @@ export default function Dashboard() {
 
       setTotalDownloads((prev) => prev + 1);
 
-      const blobURL = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
-      link.href = blobURL;
+      link.href = url;
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) {
-      console.error("Download failed:", err);
+    } catch (error) {
+      console.error(error);
       setUploadError("Failed to download file");
     }
   };
 
-  // ✅ Analyze File
+  // ✅ Analyze file
   const handleAnalyzeFile = (fileId) => navigate(`/analyze/${fileId}`);
 
-  // ✅ Stats Data
+  // Stats
   const stats = [
     { label: "Total Files", value: totalFiles, icon: <InsertDriveFile /> },
     { label: "Analyzed Files", value: totalAnalysisFiles, icon: <Analytics /> },
     { label: "Total Downloads", value: totalDownloads, icon: <Download /> },
   ];
 
-  // ✅ Loading Screen
   if (loading) {
     return (
       <Box
@@ -255,12 +254,16 @@ export default function Dashboard() {
         <Toolbar>
           <TableChart sx={{ mr: 2 }} />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Excel Analytics Platform
+            Excel Platform
           </Typography>
           <IconButton onClick={handleMenuOpen} color="inherit">
             <AccountCircle />
           </IconButton>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
             <MenuItem onClick={handleLogout}>
               <ExitToApp sx={{ mr: 1 }} /> Logout
             </MenuItem>
@@ -268,7 +271,7 @@ export default function Dashboard() {
         </Toolbar>
       </AppBar>
 
-      {/* Main Content */}
+      {/* Main Container */}
       <Container maxWidth="lg" sx={{ py: 4 }}>
         {error && <Alert severity="error">{error}</Alert>}
 
@@ -286,11 +289,13 @@ export default function Dashboard() {
           <Grid container alignItems="center" spacing={3}>
             <Grid item>
               <Avatar sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.2)" }}>
-                {profile?.name?.[0]?.toUpperCase()}
+                {profile?.name?.charAt(0).toUpperCase()}
               </Avatar>
             </Grid>
             <Grid item xs>
-              <Typography variant="h4">Welcome back, {profile?.name}!</Typography>
+              <Typography variant="h4">
+                Welcome back, {profile?.name}!
+              </Typography>
               <Typography variant="h6" sx={{ opacity: 0.9 }}>
                 Manage and analyze your Excel files efficiently
               </Typography>
@@ -304,7 +309,6 @@ export default function Dashboard() {
                   background: "white",
                   color: "primary.main",
                   fontWeight: "600",
-                  "&:hover": { background: "#f1f1f1" },
                 }}
               >
                 Upload Excel File
@@ -315,8 +319,8 @@ export default function Dashboard() {
 
         {/* Stats */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          {stats.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
+          {stats.map((stat, i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
               <Card sx={{ textAlign: "center", p: 2 }}>
                 <CardContent>
                   <Box sx={{ color: "primary.main", mb: 2 }}>{stat.icon}</Box>
@@ -332,6 +336,7 @@ export default function Dashboard() {
         <Typography variant="h5" fontWeight="600" sx={{ mb: 2 }}>
           Recent Files
         </Typography>
+
         <Card>
           <CardContent sx={{ p: 0 }}>
             {recentFiles.length ? (
@@ -339,11 +344,7 @@ export default function Dashboard() {
                 <ListItem
                   key={file._id}
                   divider
-                  sx={{
-                    px: 3,
-                    py: 2,
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
+                  sx={{ px: 3, py: 2, "&:hover": { bgcolor: "action.hover" } }}
                 >
                   <ListItemIcon>
                     <TableChart color="primary" />
@@ -361,7 +362,9 @@ export default function Dashboard() {
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Download">
-                      <IconButton onClick={() => handleDownloadFile(file._id, file.name)}>
+                      <IconButton
+                        onClick={() => handleDownloadFile(file._id, file.name)}
+                      >
                         <Download color="success" />
                       </IconButton>
                     </Tooltip>
@@ -383,7 +386,7 @@ export default function Dashboard() {
         </Card>
       </Container>
 
-      {/* ✅ Upload Dialog */}
+      {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onClose={handleUploadClose} fullWidth maxWidth="sm">
         <DialogTitle>
           Upload Excel File
@@ -393,12 +396,15 @@ export default function Dashboard() {
         </DialogTitle>
         <DialogContent>
           {uploadError && <Alert severity="error">{uploadError}</Alert>}
-
           {uploading ? (
             <Box textAlign="center" py={3}>
               <CircularProgress value={uploadProgress} variant="determinate" />
-              <Typography sx={{ mt: 1 }}>Uploading... {uploadProgress}%</Typography>
-              <LinearProgress variant="determinate" value={uploadProgress} sx={{ mt: 2 }} />
+              <Typography>Uploading... {uploadProgress}%</Typography>
+              <LinearProgress
+                variant="determinate"
+                value={uploadProgress}
+                sx={{ mt: 2 }}
+              />
             </Box>
           ) : (
             <Box
@@ -413,7 +419,7 @@ export default function Dashboard() {
               onClick={() => document.getElementById("file-upload").click()}
             >
               <CloudUpload sx={{ fontSize: 48, mb: 2, color: "primary.main" }} />
-              <Typography>Click or drag & drop Excel file here</Typography>
+              <Typography>Click or drop Excel file</Typography>
               <input
                 id="file-upload"
                 type="file"
@@ -426,9 +432,9 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Snackbar Undo */}
+      {/* Snackbar Undo */}
       <Snackbar
-        open={snackbarOpen}
+        open={snackbarOpen} 
         message="File deleted"
         action={
           <Button color="secondary" onClick={handleUndoDelete}>

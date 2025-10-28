@@ -26,9 +26,9 @@ import {
   Dashboard,
   CloudUpload,
   AutoGraph,
-  Group, 
+  Group, // Replaces Collaboration
   KeyboardArrowUp,
-  Share, 
+  Share, // Alternative for collaboration
   Cloud,
   Speed,
 } from '@mui/icons-material';
@@ -148,10 +148,10 @@ const HomePage = () => {
       <AppBar position="sticky" elevation={2}>
         <Toolbar>
           <TableChart sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600, fontFamily :"unset" }}>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Excel Platform
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, fontFamily :"unset" }}>
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <Button color="inherit" onClick={handleLogin}>
               Login
             </Button>

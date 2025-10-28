@@ -22,7 +22,13 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { ArrowBack, BarChart, ThreeDRotation, TableChart } from "@mui/icons-material";
+import {
+  ArrowBack,
+  BarChart,
+  ThreeDRotation,
+  TableChart,
+  PieChart as PieChartIcon,
+} from "@mui/icons-material";
 import {
   BarChart as ReBarChart,
   Bar,
@@ -31,6 +37,10 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
@@ -49,6 +59,12 @@ export default function Analyze() {
 
   useEffect(() => {
     const fetchAnalysis = async () => {
+      if (!user?.token) {
+        setError("Unauthorized: Please login again.");
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await axios.get(`http://localhost:5000/api/analyze/${id}`, {
           headers: { Authorization: `Bearer ${user.token}` },
@@ -56,17 +72,28 @@ export default function Analyze() {
         setAnalysis(res.data);
         setOpenSnackbar(true);
       } catch (err) {
-        console.error(err);
-        setError("Failed to analyze file");
+        console.error("❌ Analyze fetch error:", err);
+        if (err.response) {
+          setError(err.response.data.message || "Failed to analyze file.");
+        } else if (err.request) {
+          setError("Server not responding. Check backend connection.");
+        } else {
+          setError("Unexpected error occurred.");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchAnalysis();
-  }, [id, user.token]);
+  }, [id, user?.token]);
 
   const COLORS = ["#217346", "#1a6ed8", "#ff6b35", "#6a1b9a", "#2e7d32"];
-  const safeData = analysis || { fileName: "", chartData: [], columnStats: [] };
+  const safeData = analysis || {
+    fileName: "",
+    sheetNames: [],
+    chartData: [],
+    columnStats: [],
+  };
 
   if (loading)
     return (
@@ -92,9 +119,20 @@ export default function Analyze() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          p: 2,
         }}
       >
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error" variant="filled">
+          {error}
+        </Alert>
+        <Button
+          onClick={() => navigate("/dashboard")}
+          sx={{ ml: 2 }}
+          variant="contained"
+          color="primary"
+        >
+          Go Back
+        </Button>
       </Box>
     );
 
@@ -107,12 +145,16 @@ export default function Analyze() {
         onClose={() => setOpenSnackbar(false)}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: "100%" }}>
+        <Alert
+          onClose={() => setOpenSnackbar(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
           File analysis completed successfully!
         </Alert>
       </Snackbar>
 
-      {/* File Info */}
+      {/* Header */}
       <Paper
         elevation={3}
         sx={{
@@ -123,13 +165,16 @@ export default function Analyze() {
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          background: "linear-gradient(135deg, #217346 0%, #1a6ed8 100%)",
+          background:
+            theme.palette.mode === "dark"
+              ? "linear-gradient(135deg, #217346 0%, #1a6ed8 100%)"
+              : "linear-gradient(135deg, #2e7d32 0%, #42a5f5 100%)",
           color: "white",
         }}
       >
         <Box sx={{ mb: isSmall ? 2 : 0 }}>
           <Typography variant="h5" fontWeight="600">
-            {safeData.fileName}
+            {safeData.fileName || "Untitled File"}
           </Typography>
           <Typography variant="body1" sx={{ opacity: 0.8 }}>
             Sheet: {safeData.sheetNames?.[0] || "N/A"}
@@ -146,79 +191,172 @@ export default function Analyze() {
         </Button>
       </Paper>
 
-      {/* Visualization Section */}
+      {/* Main Visualization Grid */}
       <Grid container spacing={4}>
-        {/* Column Stats Table */}
+        {/* Column Stats */}
         <Grid item xs={12}>
           <Card elevation={4} sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography
                 variant="h6"
-                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  mb: 2,
+                  fontWeight: 600,
+                }}
               >
                 <TableChart color="primary" /> Column Statistics
               </Typography>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><b>Column Name</b></TableCell>
-                    <TableCell><b>Type</b></TableCell>
-                    <TableCell><b>Unique Values</b></TableCell>
-                    <TableCell><b>Empty Cells</b></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {safeData.columnStats?.map((col, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{col.name}</TableCell>
-                      <TableCell>{col.type}</TableCell>
-                      <TableCell>{col.unique}</TableCell>
-                      <TableCell>{col.empty}</TableCell>
+
+              {safeData.columnStats?.length ? (
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><b>Column Name</b></TableCell>
+                      <TableCell><b>Type</b></TableCell>
+                      <TableCell><b>Unique Values</b></TableCell>
+                      <TableCell><b>Empty Cells</b></TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHead>
+                  <TableBody>
+                    {safeData.columnStats.map((col, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{col.name}</TableCell>
+                        <TableCell>{col.type}</TableCell>
+                        <TableCell>{col.unique}</TableCell>
+                        <TableCell>{col.empty}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  No column statistics available.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* 2D Visualization */}
+        {/* 2D Bar Chart */}
         <Grid item xs={12} md={6}>
           <Card elevation={4} sx={{ borderRadius: 3, height: "100%" }}>
-            <CardContent sx={{ flexGrow: 1 }}>
+            <CardContent>
               <Typography
                 variant="h6"
-                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  mb: 2,
+                  fontWeight: 600,
+                }}
               >
                 <BarChart color="primary" /> 2D Data Visualization
               </Typography>
-              <Box sx={{ height: isSmall ? 250 : 400 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ReBarChart data={safeData.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#217346" radius={[5, 5, 0, 0]} />
-                  </ReBarChart>
-                </ResponsiveContainer>
-              </Box>
+
+              {safeData.chartData?.length ? (
+                <Box sx={{ height: isSmall ? 250 : 400 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ReBarChart data={safeData.chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar
+                        dataKey="count"
+                        fill={theme.palette.primary.main}
+                        radius={[5, 5, 0, 0]}
+                      />
+                    </ReBarChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <Typography color="text.secondary">
+                  No chart data available.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* ✅ Pie Chart Visualization */}
+        <Grid item xs={12} md={6}>
+          <Card elevation={4} sx={{ borderRadius: 3, height: "100%" }}>
+            <CardContent>
+              <Typography
+                variant="h6"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  mb: 2,
+                  fontWeight: 600,
+                }}
+              >
+                <PieChartIcon color="secondary" /> Pie Chart Visualization
+              </Typography>
+
+              {safeData.chartData?.length ? (
+                <Box sx={{ height: isSmall ? 250 : 400 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={safeData.chartData}
+                        dataKey="count"
+                        nameKey="name"
+                        outerRadius={isSmall ? 80 : 130}
+                        label
+                      >
+                        {safeData.chartData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <Typography color="text.secondary">
+                  No chart data available.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
 
         {/* 3D Visualization */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <Card elevation={4} sx={{ borderRadius: 3, height: "100%" }}>
-            <CardContent sx={{ flexGrow: 1 }}>
+            <CardContent>
               <Typography
                 variant="h6"
-                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, fontWeight: 600 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  mb: 2,
+                  fontWeight: 600,
+                }}
               >
                 <ThreeDRotation color="secondary" /> 3D Data Visualization
               </Typography>
 
-              <Box sx={{ width: "100%", height: isSmall ? 250 : 400, backgroundColor: "#f5f5f5", borderRadius: 2 }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: isSmall ? 250 : 400,
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#121212" : "#f5f5f5",
+                  borderRadius: 2,
+                }}
+              >
                 <Canvas>
                   <PerspectiveCamera makeDefault position={[3, 3, 5]} />
                   <ambientLight intensity={0.5} />
@@ -226,11 +364,13 @@ export default function Analyze() {
                   <OrbitControls />
                   {safeData.chartData?.map((item, index) => {
                     const x = index * 1.2 - 3;
-                    const height = item.count / 10;
+                    const height = Math.max(item.count / 10, 0.2);
                     return (
                       <mesh key={index} position={[x, height / 2 - 1, 0]}>
                         <boxGeometry args={[0.8, height, 0.8]} />
-                        <meshStandardMaterial color={COLORS[index % COLORS.length]} />
+                        <meshStandardMaterial
+                          color={COLORS[index % COLORS.length]}
+                        />
                       </mesh>
                     );
                   })}
