@@ -1,27 +1,11 @@
 import mongoose from "mongoose";
 
-const columnStatSchema = new mongoose.Schema({
-  name: String,
-  type: String,
-  unique: Number,
-  empty: Number,
+const AnalysisSchema = new mongoose.Schema({
+  fileId: { type: mongoose.Schema.Types.ObjectId, ref: "Upload", required: true },
+  fileName: { type: String },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  result: { type: Object }, 
+  createdAt: { type: Date, default: Date.now },
 });
 
-const chartDataSchema = new mongoose.Schema({
-  name: String,
-  count: Number,
-});
-
-const analysisSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    fileId: { type: mongoose.Schema.Types.ObjectId, ref: "UploadFile", required: true },
-    fileName: { type: String, required: true },
-    sheetName: { type: String, required: true },
-    columnStats: [columnStatSchema],
-    chartData: [chartDataSchema],
-  },
-  { timestamps: true }
-);
-
-export default mongoose.model("Analysis", analysisSchema);
+export default mongoose.model("Analysis", AnalysisSchema);
