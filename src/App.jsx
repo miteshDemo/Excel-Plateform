@@ -1,28 +1,24 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "../Frontend/protectRoutes/AuthContext";
-import Home from "../Frontend/pages/Home";
-import Register from "../Frontend/pages/Register";
+import { AuthProvider } from "../Frontend/context/AuthContext";
+import Home from "../Frontend/pages/Home"
 import Login from "../Frontend/pages/Login";
-import Dashboard from "../Frontend/pages/Dashboard";
-import ProtectedRoute from "../Frontend/protectRoutes/protectedRoutes"
+import Register from "../Frontend/pages/Register";
+import UserDashboard from "../Frontend/pages/UserDashboard";
+import AdminDashboard from "../Frontend/pages/AdminDashboard";
+import ProtectedRoute from "../Frontend/components/ProtectedRoutes";
 
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-           <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
+const App = () => (
+  <AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
+      </Routes>
+    </BrowserRouter>
+  </AuthProvider>
+);
 
 export default App;

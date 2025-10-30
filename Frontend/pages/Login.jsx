@@ -1,326 +1,202 @@
-import { useState, useContext } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import AuthContext from "../protectRoutes/AuthContext";
+import React, { useState } from "react";
 import {
-  Paper,
+  Box,
+  Typography,
   TextField,
   Button,
-  Typography,
-  Box,
-  Link,
-  Alert,
-  InputAdornment,
-  IconButton,
-  Fade,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme,
   CircularProgress,
+  Alert,
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  Email,
-  Lock,
-  TableChart,
-  Home,
-} from "@mui/icons-material";
+import { VpnKeyOutlined } from "@mui/icons-material";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+// Simulated Auth Context
+const useAuth = () => ({
+  login: (data) => console.log("Simulating login with data:", data),
+});
+
+const LoginPage = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const { login } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const [feedback, setFeedback] = useState(null);
+
+  const { login } = useAuth();
+  const navigate = useNavigate ? useNavigate() : () => {};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setFeedback(null);
 
     try {
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        { email, password }
-      );
-      login(data);
-      navigate("/dashboard");
-    } catch (error) {
-      setError(error.response?.data?.message || "Login failed");
-    } finally {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const mockData = { token: "fake-jwt", user: { email, name: "User" } };
+
+      login(mockData);
+      setFeedback({
+        type: "success",
+        message: "Login successful! Redirecting to dashboard...",
+      });
+
+      setTimeout(() => {
+        setLoading(false);
+        console.log("Redirecting to dashboard...");
+      }, 2000);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: "Invalid email or password. Please try again.",
+      });
       setLoading(false);
     }
-  };
-
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const handleGoHome = () => {
-    navigate("/");
   };
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        width: "100vw",
-        background: "#217346",
+        bgcolor: "linear-gradient(to right, #f7fafc, #e8f5e9)",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
-        padding: 2,
-        margin: 0,
+        alignItems: "center",
+        px: 2,
       }}
     >
-      <Fade in timeout={800}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: "100%",
-            maxWidth: "400px",
-            position: "relative",
-          }}
-        >
+      <Card
+        elevation={12}
+        sx={{
+          width: "100%",
+          maxWidth: 450,
+          borderRadius: 4,
+          overflow: "hidden",
+          mx: "auto",
+          py: 4,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+          transition: "transform 0.3s",
+          "&:hover": { transform: "scale(1.01)" },
+        }}
+      >
+        <CardContent sx={{ px: isMobile ? 3 : 5 }}>
           {/* Header */}
+          <Box textAlign="center" mb={4}>
+            <VpnKeyOutlined
+              sx={{
+                fontSize: 48,
+                color: "#107C41",
+                mb: 1,
+              }}
+            />
+            <Typography
+              variant="h4"
+              component="h1"
+              fontWeight="bold"
+              color="text.primary"
+              gutterBottom
+            >
+              Welcome Back
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Log in to access your Excel Platform dashboard.
+            </Typography>
+          </Box>
+
+          {/* Feedback */}
+          {feedback && (
+            <Alert severity={feedback.type} sx={{ mb: 3 }}>
+              {feedback.message}
+            </Alert>
+          )}
+
+          {/* Form */}
           <Box
+            component="form"
+            onSubmit={handleSubmit}
             sx={{
               display: "flex",
-              alignItems: "center",
-              mb: 1,
-              color: "white",
+              flexDirection: "column",
+              gap: 3,
             }}
           >
-            <TableChart sx={{ fontSize: 32, mr: 1 }} />
-            <Typography variant="h5" component="h1" fontWeight="600">
-              Excel Platform
-            </Typography>
+            <TextField
+              label="Email Address"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+              required
+              variant="outlined"
+              size="medium"
+            />
+
+            <TextField
+              label="Password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              required
+              variant="outlined"
+              size="medium"
+            />
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={loading}
+              sx={{
+                mt: 2,
+                py: 1.4,
+                fontWeight: "bold",
+                textTransform: "none",
+                backgroundColor: "#107C41",
+                color: "#fff",
+                "&:hover": { backgroundColor: "#0e6939" },
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Sign In"
+              )}
+            </Button>
           </Box>
 
-          <Typography
-            variant="body1"
-            sx={{ mb: 3, textAlign: "center", color: "white" }}
-          >
-            Welcome back! Sign in to your account
-          </Typography>
-
-          <Paper
-            elevation={8}
-            sx={{
-              padding: 3,
-              width: "100%",
-              borderRadius: 2,
-              background: "white",
-              position: "relative",
-            }}
-          >
-            {/* Home Icon inside the form */}
-            <IconButton
-              onClick={handleGoHome}
-              sx={{
-                position: "absolute",
-                top: 16,
-                left: 16,
-                color: "primary.main",
-                backgroundColor: "rgba(33, 115, 70, 0.1)",
-                "&:hover": {
-                  backgroundColor: "rgba(33, 115, 70, 0.2)",
-                  transform: "scale(1.05)",
-                },
-                transition: "all 0.2s ease-in-out",
-              }}
-              aria-label="Go back to home page"
-            >
-              <Home fontSize="small" />
-            </IconButton>
-
-            <Typography
-              component="h2"
-              variant="h5"
-              align="center"
-              gutterBottom
-              sx={{
-                fontWeight: "600",
-                color: "primary.main",
-                mb: 2,
-              }}
-            >
-              Sign In
-            </Typography>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2, fontSize: "0.875rem" }}>
-                {error}
-              </Alert>
-            )}
-
-            <Box component="form" onSubmit={handleSubmit} noValidate>
-              <TextField
-                fullWidth
-                label="Email Address"
-                type="email"
-                variant="outlined"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Email fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  mb: 2,
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1,
-                    "&:hover fieldset": {
-                      borderColor: "primary.main",
-                    },
-                  },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                variant="outlined"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Lock fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowPassword}
-                        edge="end"
-                        disabled={loading}
-                        size="small"
-                      >
-                        {showPassword ? (
-                          <VisibilityOff fontSize="small" />
-                        ) : (
-                          <Visibility fontSize="small" />
-                        )}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  mb: 3,
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1,
-                    "&:hover fieldset": {
-                      borderColor: "primary.main",
-                    },
-                  },
-                }}
-              />
-
+          {/* Footer */}
+          <Box textAlign="center" mt={3}>
+            <Typography variant="body2" color="text.secondary">
+              Don’t have an account?{" "}
               <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                disabled={loading}
+                href="/register"
+                size="small"
                 sx={{
-                  py: 1,
-                  borderRadius: 1,
                   textTransform: "none",
-                  fontWeight: "600",
-                  background:
-                    "linear-gradient(135deg, #217346 0%, #1a6ed8 100%)",
-                  "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #1a5a38 0%, #1557b7 100%)",
-                    transform: "translateY(-1px)",
-                  },
-                  "&:disabled": {
-                    background: "grey.400",
-                  },
-                  transition: "all 0.2s ease-in-out",
+                  fontWeight: "bold",
+                  color: "#107C41",
+                  "&:hover": { textDecoration: "underline" },
                 }}
               >
-                {loading ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  "Sign In"
-                )}
+                Register
               </Button>
-
-              <Box sx={{ textAlign: "center", mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Don't have an account?{" "}
-                  <Link
-                    component="button"
-                    type="button"
-                    onClick={() => navigate("/register")}
-                    sx={{
-                      color: "secondary.main",
-                      textDecoration: "none",
-                      fontWeight: "600",
-                      fontSize: "0.875rem",
-                      "&:hover": {
-                        textDecoration: "underline",
-                      },
-                    }}
-                  >
-                    Sign up now
-                  </Link>
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Compact Features Preview - Same as Register */}
-          <Box
-            sx={{ display: "flex", justifyContent: "center", gap: 3, mt: 3 }}
-          >
-            <Box sx={{ textAlign: "center", color: "white" }}>
-              <TableChart sx={{ fontSize: 24, mb: 0.5 }} />
-              <Typography
-                variant="caption"
-                fontWeight="500"
-                sx={{ color: "white" }}
-              >
-                Spreadsheets
-              </Typography>
-            </Box>
-            <Box sx={{ textAlign: "center", color: "white" }}>
-              <Email sx={{ fontSize: 24, mb: 0.5 }} />
-              <Typography
-                variant="caption"
-                fontWeight="500"
-                sx={{ color: "white" }}
-              >
-                Collaborate
-              </Typography>
-            </Box>
-            <Box sx={{ textAlign: "center", color: "white" }}>
-              <Lock sx={{ fontSize: 24, mb: 0.5 }} />
-              <Typography
-                variant="caption"
-                fontWeight="500"
-                sx={{ color: "white" }}
-              >
-                Secure
-              </Typography>
-            </Box>
+            </Typography>
           </Box>
-        </Box>
-      </Fade>
+        </CardContent>
+      </Card>
     </Box>
   );
-}
+};
+
+export default LoginPage;
