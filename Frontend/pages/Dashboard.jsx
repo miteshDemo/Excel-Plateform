@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   Box,
   Typography,
@@ -8,27 +8,44 @@ import {
   Container,
   Avatar,
   Stack,
+  IconButton,
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import EmailIcon from "@mui/icons-material/Email";
 import HomeIcon from "@mui/icons-material/Home";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import AuthContext from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(true);
+
+  const toggleTheme = () => setDarkMode((prev) => !prev);
+
+  const bgGradient = darkMode
+    ? "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)"
+    : "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)";
+
+  const cardBg = darkMode
+    ? "rgba(0,0,0,0.4)"
+    : "rgba(255,255,255,0.15)";
+
+  const textColor = darkMode ? "#f5f5f5" : "#ffffff";
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
+        background: bgGradient,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         p: 2,
+        transition: "background 0.5s ease",
       }}
     >
       <Container maxWidth="sm">
@@ -38,16 +55,28 @@ const Dashboard = () => {
             borderRadius: "20px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
             backdropFilter: "blur(12px)",
-            background: "rgba(255,255,255,0.15)",
+            background: cardBg,
             border: "1px solid rgba(255,255,255,0.3)",
-            color: "white",
+            color: textColor,
             textAlign: "center",
-            transition: "transform 0.3s ease",
-            "&:hover": {
-              transform: "scale(1.02)",
-            },
+            position: "relative",
+            transition: "all 0.5s ease",
+            "&:hover": { transform: "scale(1.02)" },
           }}
         >
+          {/* Dark/Light Mode Toggle */}
+          <IconButton
+            onClick={toggleTheme}
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              color: textColor,
+            }}
+          >
+            {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+
           {/* Avatar Section */}
           <Stack alignItems="center" spacing={2} mb={3}>
             <Avatar
@@ -66,7 +95,11 @@ const Dashboard = () => {
             <Typography
               variant="h4"
               fontWeight="bold"
-              sx={{ color: "#fff", textShadow: "0 2px 6px rgba(0,0,0,0.3)" }}
+              sx={{
+                color: textColor,
+                textShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                transition: "color 0.5s ease",
+              }}
             >
               Welcome, {user?.name || "User"} 👋
             </Typography>
@@ -74,13 +107,7 @@ const Dashboard = () => {
 
           {/* User Info */}
           <CardContent>
-            <Stack
-              spacing={2}
-              sx={{
-                mb: 3,
-                alignItems: "center",
-              }}
-            >
+            <Stack spacing={2} sx={{ mb: 3, alignItems: "center" }}>
               <Stack
                 direction="row"
                 spacing={1}
@@ -159,6 +186,7 @@ const Dashboard = () => {
             sx={{
               color: "rgba(255,255,255,0.85)",
               fontSize: "0.9rem",
+              transition: "color 0.5s ease",
             }}
           >
             © {new Date().getFullYear()} Excel Analytics Platform |{" "}
