@@ -11,6 +11,7 @@ import Dashboard from "../Frontend/pages/Dashboard";
 
 // 🔹 Components
 import ProtectedRoute from "../Frontend/components/ProtectedRoutes";
+import AdminDashboard from "../Frontend/pages/AdminDashboard";
 
 function App() {
   const { user } = useContext(AuthContext);
@@ -37,6 +38,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin-dashboard"
+        element={
+          <ProtectedRoute>
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />
