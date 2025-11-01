@@ -1,26 +1,37 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import Register from "../Frontend/pages/Register";
-import Home from "../Frontend/pages/Home";
-import Login from "../Frontend/pages/Login";
-import Dashboard from "../Frontend/pages/Dashboard";
-import ProtectedRoute from "../Frontend/components/ProtectedRoutes";
 import { useContext } from "react";
 import AuthContext from "../Frontend/context/AuthContext";
 
+// 🔹 Pages
+import Home from "../Frontend/pages/Home";
+import Register from "../Frontend/pages/Register";
+import Login from "../Frontend/pages/Login";
+import Dashboard from "../Frontend/pages/Dashboard";
+
+
+// 🔹 Components
+import ProtectedRoute from "../Frontend/components/ProtectedRoutes";
+
 function App() {
   const { user } = useContext(AuthContext);
+  
 
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/" element={<Home />} />
+
       <Route
         path="/register"
         element={!user ? <Register /> : <Navigate to="/dashboard" replace />}
       />
+
       <Route
         path="/login"
         element={!user ? <Login /> : <Navigate to="/dashboard" replace />}
       />
+
+      {/* Protected User Route */}
       <Route
         path="/dashboard"
         element={
@@ -29,6 +40,8 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* Redirect all unknown routes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

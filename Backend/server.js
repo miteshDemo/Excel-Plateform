@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import analysisRoutes from "./routes/analysisRoutes.js";
 
+
 dotenv.config();
 connectDB();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/analysis", analysisRoutes);
+
 
 // ✅ Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));

@@ -11,12 +11,15 @@ import {
 } from "@mui/material";
 import AuthContext from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // 👈 Import Back Icon
+import ArrowBackIcon from "@mui/icons-material/ArrowBack"; 
 
 const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+
+  const ADMIN_EMAIL = "admin123@gmail.com";
+  const ADMIN_PASSWORD = "admin@123";
 
   const handleSubmit = (e) => {
     e.preventDefault();
