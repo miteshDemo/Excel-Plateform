@@ -7,15 +7,14 @@ import Home from "../Frontend/pages/Home";
 import Register from "../Frontend/pages/Register";
 import Login from "../Frontend/pages/Login";
 import Dashboard from "../Frontend/pages/Dashboard";
-
+import AdminDashboard from "../Frontend/pages/AdminDashboard";
+import SuperAdminDashboard from "../Frontend/pages/SuperAdminDashboard";
 
 // 🔹 Components
 import ProtectedRoute from "../Frontend/components/ProtectedRoutes";
-import AdminDashboard from "../Frontend/pages/AdminDashboard";
 
 function App() {
   const { user } = useContext(AuthContext);
-  
 
   return (
     <Routes>
@@ -47,6 +46,15 @@ function App() {
         element={
           <ProtectedRoute>
             <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/super-dashboard"
+        element={
+          <ProtectedRoute>
+            <SuperAdminDashboard />
           </ProtectedRoute>
         }
       />
